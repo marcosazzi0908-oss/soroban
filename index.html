@@ -205,6 +205,38 @@ p{margin:0}
 .tbl td{padding:9px 6px 9px 0;border-top:1px solid var(--line);vertical-align:middle}
 .tbl td.r,.tbl th.r{text-align:right;padding-left:10px;white-space:nowrap}
 
+/* exercício: em retrato os dois blocos se dissolvem e a ordem vem de .oN; em paisagem viram duas colunas */
+.ex-l,.ex-r{display:contents}
+.o1{order:1}.o2{order:2}.o3{order:3}.o4{order:4}.o5{order:5}.o6{order:6}.o7{order:7}
+
+/* celular deitado: abas viram trilho lateral, cabeçalho encolhe, conta à esquerda e soroban à direita */
+@media (orientation: landscape) and (max-height: 540px){
+  .app{max-width:980px;display:grid;grid-template-columns:68px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);column-gap:12px}
+  .top{grid-column:2;grid-row:1;padding-block:6px 4px}
+  .top p{display:none}
+  h1{font-size:16px}
+  .kanji{font-size:11px;padding:5px 4px}
+  .icon-btn{width:34px;height:34px}
+  main{grid-column:2;grid-row:2;padding-block:2px 12px}
+  .tabs{grid-column:1;grid-row:1 / 3;grid-template-columns:1fr;grid-auto-rows:min-content;align-content:center;margin:8px 0;gap:4px}
+  .tab{padding:7px 0}
+  .ex{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:10px 18px;align-items:start}
+  .ex>.ex-head,.ex>.prog{grid-column:1 / -1}
+  .ex-l,.ex-r{display:flex;flex-direction:column;gap:10px;min-width:0}
+  .prompt{font-size:28px}
+  .prompt.txt{font-size:20px}
+  .vsum{font-size:24px}
+  .vsum.long{font-size:17px}
+  .kp-disp{font-size:28px;min-height:44px;padding:4px}
+  .kp{gap:6px}
+  .ex .kp{grid-template-columns:repeat(6,1fr)}
+  .key{min-height:40px;font-size:18px}
+  .ex .key.go{font-size:15px}
+  .stage{height:min(60vh,240px)}
+  .stage-num{font-size:clamp(64px,18vh,120px)}
+  .kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+
 @media (prefers-reduced-motion: reduce){.bead,.switch,.switch::after{transition:none}}
 </style>
 
@@ -331,7 +363,9 @@ function makeBoard(n,{interactive=true,onChange}={}){
   let G={bw:40,bh:20,hh:48,beamh:6,eh:108};
   function layout(){
     const w=rodsEl.clientWidth; if(!w) return;
-    const col=w/n, bw=Math.min(col*0.9,68), bh=Math.round(bw*0.5);
+    // largura manda, mas a altura também limita (celular deitado): o soroban ocupa no máximo ~55% da tela
+    const col=w/n, maxBh=Math.max(12,Math.floor((window.innerHeight*0.55-22)/7));
+    const bh=Math.min(Math.round(Math.min(col*0.9,68)*0.5),maxBh), bw=Math.min(col*0.9,68,bh*2.3);
     G={bw,bh,hh:bh*2+8,beamh:6,eh:bh*5+8};
     const H=G.hh+G.beamh+G.eh;
     for(const [k,v] of Object.entries({'--bw':bw,'--bh':bh,'--hh':G.hh,'--beamh':G.beamh,'--H':H})) rodsEl.style.setProperty(k,v+'px');
@@ -367,7 +401,8 @@ function makeBoard(n,{interactive=true,onChange}={}){
   function set(v){ v=Math.max(0,Math.floor(v)); for(let i=n-1;i>=0;i--){digits[i]=v%10;v=Math.floor(v/10);} paint(); }
   function highlight(places){ rods.forEach((r,i)=>r.rod.classList.toggle('hl',places.includes(n-1-i))); }
   function lock(b){ locked=b; root.classList.toggle('locked',b); }
-  try{ new ResizeObserver(layout).observe(rodsEl); }catch(_){ window.addEventListener('resize',layout); }
+  try{ new ResizeObserver(layout).observe(rodsEl); }catch(_){}
+  window.addEventListener('resize',()=>{ if(document.body.contains(root)) layout(); });
   requestAnimationFrame(layout);
   return {el:root,value,set,highlight,lock,clear:()=>{set(0);onChange&&onChange(0);}};
 }
@@ -660,19 +695,22 @@ function viewExercise(sess){
   }
   const scoreText=()=>`${sess.res.filter(r=>r.ok).length} de ${sess.res.length} certas`;
   const scoreEl=h('span',{class:'num muted small'},sess.endless?scoreText():`${sess.i+1}/${sess.items.length}`);
-  return h('div',{class:'stack'},
+  const prompt=promptOf(it); prompt.classList.add('o2');
+  board.el.classList.add('o4'); if(kp) kp.el.classList.add('o5');
+  actions.classList.add('o6'); fb.classList.add('o7');
+  return h('div',{class:'stack ex'},
     h('div',{class:'ex-head'},
       h('button',{class:'link',onclick:()=>{SESS[route]=null;render();}},ctx.back),
       scoreEl,
       sess.endless?h('button',{class:'link',onclick:()=>{if(sess.res.length) finish(); else {SESS[route]=null;render();}}},'Encerrar'):null),
     sess.endless?null:h('div',{class:'prog'},h('i',{style:`width:${sess.i/sess.items.length*100}%`})),
-    u.label?h('p',{class:'eyebrow',style:'text-align:center'},`${u.label} · ${u.title}`):null,
-    promptOf(it),
-    h('p',{class:'muted small',style:'text-align:center'},note),
-    board.el,
-    kp?kp.el:null,
-    actions,
-    fb
+    h('div',{class:'ex-l'},
+      u.label?h('p',{class:'eyebrow o1',style:'text-align:center'},`${u.label} · ${u.title}`):null,
+      prompt,
+      h('p',{class:'muted small o3',style:'text-align:center'},note),
+      kp?kp.el:null,
+      fb),
+    h('div',{class:'ex-r'},board.el,actions)
   );
 }
 function viewSummary(sess){
